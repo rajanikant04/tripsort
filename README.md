@@ -1,4 +1,4 @@
-# TRIPSORT - Agent
+# TRIPSORT - A Multi-Agent Travel Planner
 
 ## Setup with Conda
 1. Create a new conda environment:
