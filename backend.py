@@ -215,6 +215,9 @@ def run_travel_agent(user_input: str, thread_id: str | None = None):
     config = {
         "configurable": {
             "thread_id": thread_id
+        },
+        "metadata": {
+            "thread_id": thread_id
         }
     }
 
