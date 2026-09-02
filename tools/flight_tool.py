@@ -1,4 +1,4 @@
-from config import AVIATIONSTACK_API_KEY
+from config import AVIATIONSTACK_API_KEY, DEFAULT_ORIGIN_IATA
 
 import re
 import certifi
@@ -48,8 +48,8 @@ COUNTRY_ALIASES = {
 
 # Preferred main airport for country-level search
 COUNTRY_MAIN_AIRPORT = {
-    "BD": "DAC",
     "IN": "DEL",
+    "BD": "DAC",
     "JP": "NRT",
     "US": "JFK",
     "GB": "LHR",
@@ -76,9 +76,9 @@ COUNTRY_MAIN_AIRPORT = {
 
 
 CITY_MAIN_AIRPORT = {
-    "dhaka": "DAC",
     "delhi": "DEL",
     "new delhi": "DEL",
+    "dhaka": "DAC",
     "mumbai": "BOM",
     "kolkata": "CCU",
     "chennai": "MAA",
