@@ -94,13 +94,6 @@ async def health_check():
         "message": "AI Travel Planner API is running"
     }
 
-
-@app.get("/favicon.ico")
-async def favicon():
-    return JSONResponse(content={})
-
-
-
 if __name__ == "__main__":
     uvicorn.run(
         "app:app",
