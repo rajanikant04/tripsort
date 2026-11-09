@@ -191,16 +191,51 @@ graph.add_edge("final_agent", END)
 # =========================
 DATABASE_URL = get_database_url()
 
-_conn = psycopg.connect(
-    DATABASE_URL,
-    autocommit=True,
-    row_factory=dict_row
-)
 
-checkpointer = PostgresSaver(_conn)
-checkpointer.setup()
+def _create_connection():
+    """Create a fresh PostgreSQL connection."""
+    return psycopg.connect(
+        DATABASE_URL,
+        autocommit=True,
+        row_factory=dict_row
+    )
 
-travel_graph = graph.compile(checkpointer=checkpointer)
+
+def _build_graph():
+    """Build the travel graph with a fresh checkpointer."""
+    conn = _create_connection()
+    checkpointer = PostgresSaver(conn)
+    checkpointer.setup()
+    compiled = graph.compile(checkpointer=checkpointer)
+    return compiled, conn
+
+
+_conn = None
+travel_graph = None
+
+
+def _ensure_graph():
+    """Ensure travel_graph is ready, reconnecting if Neon killed the connection."""
+    global _conn, travel_graph
+
+    if _conn is None or travel_graph is None:
+        travel_graph, _conn = _build_graph()
+        return
+
+    # Check if the connection is still alive (Neon suspends after ~5 min idle)
+    try:
+        _conn.execute("SELECT 1")
+    except Exception:
+        # Connection is dead — reconnect
+        try:
+            _conn.close()
+        except Exception:
+            pass
+        travel_graph, _conn = _build_graph()
+
+
+# Initialize on startup
+_ensure_graph()
 
 
 
@@ -209,6 +244,8 @@ travel_graph = graph.compile(checkpointer=checkpointer)
 # =========================
 
 def run_travel_agent(user_input: str, thread_id: str | None = None):
+    _ensure_graph()
+
     if not thread_id:
         thread_id = f"user_{uuid.uuid4().hex}"
 
@@ -221,19 +258,36 @@ def run_travel_agent(user_input: str, thread_id: str | None = None):
         }
     }
 
-    result = travel_graph.invoke(
-        {
-            "messages": [
-                HumanMessage(content=user_input)
-            ],
-            "user_query": user_input,
-            "flight_results": "",
-            "hotel_results": "",
-            "itinerary": "",
-            "llm_calls": 0
-        },
-        config=config
-    )
+    try:
+        result = travel_graph.invoke(
+            {
+                "messages": [
+                    HumanMessage(content=user_input)
+                ],
+                "user_query": user_input,
+                "flight_results": "",
+                "hotel_results": "",
+                "itinerary": "",
+                "llm_calls": 0
+            },
+            config=config
+        )
+    except psycopg.OperationalError:
+        # Connection died mid-request — reconnect and retry once
+        _ensure_graph()
+        result = travel_graph.invoke(
+            {
+                "messages": [
+                    HumanMessage(content=user_input)
+                ],
+                "user_query": user_input,
+                "flight_results": "",
+                "hotel_results": "",
+                "itinerary": "",
+                "llm_calls": 0
+            },
+            config=config
+        )
 
     final_answer = result["messages"][-1].content
 
